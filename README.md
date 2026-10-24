@@ -171,12 +171,6 @@ docker compose -f ruta/al/compose.yaml ps
 - Evaluar opciones de despliegue remoto, incluido Vercel si corresponde a la arquitectura.
 - Documentar los endpoints definitivos y agregar capturas de evidencia.
 
-## 👥 Equipo
-
-Proyecto desarrollado como parte de la **Evaluación Solemne: Sistema IoT con Microservicios**.
-
-**Integrantes:** completar con los nombres del equipo.
-
 ---
 
 **Versión documentada:** Fase 3B — ejecución local, sin Firestore operativo ni despliegue en Vercel.
