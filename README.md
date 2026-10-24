@@ -4,7 +4,7 @@
 
 Proyecto académico de **Evaluación Solemne: Sistema IoT con Microservicios**. Simula la operación de un estacionamiento inteligente mediante eventos de sensores, mensajería MQTT, procesamiento desacoplado y una API REST.
 
-> **Alcance de esta versión:** ejecución local con Docker, simulación de eventos, comunicación MQTT, procesamiento y API FastAPI. Se contempla persistencia local con SQLite. **No se incluye una conexión operativa a Firebase Firestore ni un despliegue en Vercel.**
+> **Alcance de esta versión:** microservicios y simulación IoT, MQTT, FastAPI, persistencia local SQLite, **integración funcional con Firebase Firestore** y **despliegue operativo en Vercel**. Aún resta validar la seguridad y el dashboard e integrar una Raspberry Pi física.
 
 ## 🎯 Objetivo
 
@@ -18,7 +18,9 @@ flowchart LR
     M -->|Entrega mensajes| P[Procesador]
     P --> DB[(SQLite local)]
     P --> A[API FastAPI]
+    A --> F[(Firebase Firestore)]
     A --> U[Cliente / Swagger UI]
+    V[Aplicación desplegada en Vercel] -.->|Integración a verificar| A
 ```
 
 > Diagrama conceptual. La comunicación exacta entre procesador, base de datos y API depende de la implementación del repositorio.
@@ -33,8 +35,8 @@ flowchart LR
 | FastAPI | Exposición de endpoints HTTP |
 | SQLite | Almacenamiento local |
 | Docker y Docker Compose | Ejecución y orquestación de contenedores |
-| Firebase Firestore | Integración futura; no conectada en esta fase |
-| Vercel | Despliegue futuro; no implementado en esta fase |
+| Firebase Firestore | Integración en funcionamiento |
+| Vercel | Despliegue en funcionamiento |
 
 ## ✅ Funcionalidades de la Fase 3B
 
@@ -44,7 +46,10 @@ flowchart LR
 - Ejecución de los servicios en contenedores Docker.
 - Consulta de la API REST y su documentación interactiva FastAPI.
 - Preparación o utilización de almacenamiento SQLite local, según la configuración del proyecto.
-- Configuración prevista para integración futura con servicios en la nube.
+- Conexión funcional con Firebase Firestore.
+- Despliegue en Vercel operativo.
+
+**En validación:** controles de seguridad y funcionamiento integral del dashboard. **Pendiente:** conexión de una Raspberry Pi real.
 
 ## 📋 Requisitos
 
@@ -119,7 +124,9 @@ Evita `docker compose down -v` si deseas conservar los volúmenes de datos.
 2. Revisa los logs del simulador y del procesador; verifica que se publiquen y consuman mensajes MQTT.
 3. Abre `/docs` y ejecuta una solicitud a uno de los endpoints existentes.
 4. Si SQLite está habilitado, comprueba que los registros persistan según la configuración local.
-5. Si la API expone un campo `cloud_configured`, un valor `false` es esperable mientras Firestore no esté configurado.
+5. Verifica que las operaciones previstas con Firestore se reflejen correctamente en la base de datos.
+6. Comprueba que el despliegue en Vercel sea accesible y que las funciones principales respondan.
+7. Ejecuta pruebas de seguridad y del dashboard antes de darlos por validados.
 
 ## 🗂️ Estructura del proyecto
 
@@ -132,20 +139,30 @@ Estacionamiento Inteligente
 ├── Procesador de eventos
 ├── API REST (FastAPI)
 ├── Persistencia SQLite local
+├── Firebase Firestore (operativo)
+├── Despliegue Vercel (operativo)
 └── Configuración Docker Compose
 ```
 
 Este esquema **no representa nombres literales de directorios**.
 
-## ☁️ Integraciones pendientes
+## ☁️ Integraciones operativas
 
 ### Firebase Firestore
 
-La base de datos en Firebase puede estar creada, pero **esta versión no acredita una conexión funcional** desde los microservicios. La sincronización con la nube y la gestión segura de credenciales quedan pendientes.
+La integración con **Firebase Firestore ya está funcionando**. Queda pendiente comprobar en profundidad las reglas de acceso, la protección de credenciales y el comportamiento frente a solicitudes no autorizadas. La topología exacta de escritura y lectura debe verificarse en el código.
 
 ### Vercel
 
-**No existe despliegue en Vercel para esta fase.** La aplicación se ejecuta localmente mediante Docker.
+El **despliegue en Vercel ya está funcionando**. Queda por validar el dashboard completo, la gestión de variables de entorno y la seguridad de los recursos publicados. La URL del despliegue se incorporará cuando esté disponible.
+
+## 🔐 Validaciones pendientes
+
+- **Seguridad:** revisar autenticación y autorización, reglas de Firestore, secretos y variables de entorno, permisos de API, CORS y exposición de endpoints.
+- **Dashboard:** comprobar carga de datos reales, actualización de ocupación, estados de error, funcionamiento desde Vercel y visualización en diferentes dispositivos.
+- **Raspberry Pi física:** configurar el dispositivo, conectar los sensores reales, publicar eventos por MQTT y contrastar sus lecturas con el simulador.
+
+> Ninguna de estas tres áreas se declara terminada o aprobada hasta completar las pruebas correspondientes.
 
 ## 🧯 Solución de problemas
 
@@ -165,12 +182,11 @@ docker compose -f ruta/al/compose.yaml ps
 
 ## 🔜 Próximos pasos
 
-- Completar y verificar la conexión con Firebase Firestore.
-- Validar la sincronización de datos locales y remotos.
-- Incorporar pruebas automatizadas y manejo de errores.
-- Evaluar opciones de despliegue remoto, incluido Vercel si corresponde a la arquitectura.
-- Documentar los endpoints definitivos y agregar capturas de evidencia.
+1. Realizar pruebas de seguridad de extremo a extremo, incluyendo Firestore y el despliegue en Vercel.
+2. Validar todas las vistas y flujos del dashboard con datos del sistema.
+3. Integrar una Raspberry Pi real y verificar su comunicación MQTT con los microservicios.
+4. Documentar evidencias de pruebas, URLs, endpoints y resultados finales.
 
 ---
 
-**Versión documentada:** Fase 3B — ejecución local, sin Firestore operativo ni despliegue en Vercel.
+**Versión documentada:** Fase 3C — Firestore y Vercel operativos; seguridad y dashboard en validación; Raspberry Pi real pendiente.
