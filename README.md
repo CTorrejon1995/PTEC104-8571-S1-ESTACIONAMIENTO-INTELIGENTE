@@ -1,192 +1,212 @@
 # 🚗 Estacionamiento Inteligente IoT con Microservicios
 
-![Estado](https://img.shields.io/badge/Estado-Fase%203B-blue) ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED) ![Python](https://img.shields.io/badge/Python-3.x-3776AB) ![API](https://img.shields.io/badge/API-FastAPI-009688)
+**Evaluación Solemne — Sistema IoT con Microservicios**
 
-Proyecto académico de **Evaluación Solemne: Sistema IoT con Microservicios**. Simula la operación de un estacionamiento inteligente mediante eventos de sensores, mensajería MQTT, procesamiento desacoplado y una API REST.
+[![Estado](https://img.shields.io/badge/Estado-Software%20operativo-brightgreen)](https://github.com/CTorrejon1995/PTEC104-8571-S1-ESTACIONAMIENTO-INTELIGENTE)
+[![Hardware](https://img.shields.io/badge/Raspberry%20Pi-Integraci%C3%B3n%20pendiente-orange)](https://github.com/CTorrejon1995/PTEC104-8571-S1-ESTACIONAMIENTO-INTELIGENTE)
 
-> **Alcance de esta versión:** microservicios y simulación IoT, MQTT, FastAPI, persistencia local SQLite, **integración funcional con Firebase Firestore** y **despliegue operativo en Vercel**. Aún resta validar la seguridad y el dashboard e integrar una Raspberry Pi física.
+Sistema de estacionamiento inteligente basado en una arquitectura IoT de microservicios. Permite simular eventos de ocupación, transmitirlos mediante MQTT, procesarlos y consultar la información desde una API y un dashboard web conectado a Firebase Firestore.
+
+> **Estado actual (octubre de 2026):** el software, el dashboard, la integración con Firestore, el despliegue en Vercel y el control de acceso por roles `admin` y `viewer` están implementados y funcionando. **La única integración pendiente es reemplazar o complementar el simulador con una Raspberry Pi física.**
+
+## 🌐 Aplicación web
+
+**[Abrir dashboard desplegado en Vercel](https://ptec-104-8571-s1-estacionamiento-in-eta.vercel.app/)**
+
+El acceso a las funciones depende del usuario autenticado y de su rol asignado.
 
 ## 🎯 Objetivo
 
-Diseñar un sistema IoT modular que permita simular cambios de ocupación de espacios de estacionamiento, transmitir eventos y consultar información procesada a través de una API.
+Construir un sistema modular para registrar y visualizar eventos de ocupación de estacionamientos, separando la generación de eventos, la mensajería, el procesamiento, la persistencia y la interfaz web. La arquitectura permite comenzar con sensores simulados y posteriormente incorporar hardware real.
 
-## 🧩 Arquitectura
+## 🏗️ Arquitectura general
 
 ```mermaid
 flowchart LR
-    S[Simulador de sensores] -->|Publica eventos| M[Broker MQTT]
-    M -->|Entrega mensajes| P[Procesador]
-    P --> DB[(SQLite local)]
-    P --> A[API FastAPI]
-    A --> F[(Firebase Firestore)]
-    A --> U[Cliente / Swagger UI]
-    V[Aplicación desplegada en Vercel] -.->|Integración a verificar| A
+    S[Simulador IoT] -->|Eventos| M[Broker MQTT Mosquitto]
+    M --> P[Procesador de eventos]
+    P --> L[(SQLite local)]
+    P --> C[Servicios / integración en la nube]
+    C --> F[(Firebase Firestore)]
+    F --> W[Dashboard web]
+    A[Autenticación y roles] --> W
+    R[Raspberry Pi real - pendiente] -.->|Eventos MQTT futuros| M
 ```
 
-> Diagrama conceptual. La comunicación exacta entre procesador, base de datos y API depende de la implementación del repositorio.
+> Esquema conceptual de los componentes del proyecto. Las rutas concretas de lectura y escritura entre servicios dependen de la configuración del código.
 
-## 🛠️ Tecnologías
+## 🧰 Tecnologías
 
-| Tecnología | Función |
-| --- | --- |
-| Python | Lógica del simulador y servicios |
-| MQTT | Transporte de eventos IoT |
-| Broker MQTT | Distribución de mensajes entre servicios |
-| FastAPI | Exposición de endpoints HTTP |
-| SQLite | Almacenamiento local |
-| Docker y Docker Compose | Ejecución y orquestación de contenedores |
-| Firebase Firestore | Integración en funcionamiento |
-| Vercel | Despliegue en funcionamiento |
+| Tecnología | Uso |
+|---|---|
+| Python | Simulador y lógica de servicios |
+| MQTT / Eclipse Mosquitto | Mensajería de eventos IoT |
+| FastAPI | API REST |
+| SQLite | Persistencia local |
+| Firebase Firestore | Almacenamiento e integración de datos en la nube |
+| Docker y Docker Compose | Contenedores y orquestación local |
+| Vercel | Despliegue de la aplicación web |
+| Dashboard web | Visualización y administración según permisos |
+| Raspberry Pi | Dispositivo físico por integrar |
 
-## ✅ Funcionalidades de la Fase 3B
+## 📂 Estructura del repositorio
 
-- Simulación de eventos asociados a sensores de estacionamiento.
+```text
+PTEC104-8571-S1-ESTACIONAMIENTO-INTELIGENTE/
+├── api/                 # API local
+├── cloud-api/           # Servicios de integración en la nube
+├── mosquitto/           # Configuración del broker MQTT
+├── processor/           # Procesamiento de eventos
+├── simulator/           # Simulación de sensores IoT
+├── web/                 # Aplicación web / dashboard
+├── .env.example         # Ejemplo de variables de entorno
+├── .gitignore
+├── docker-compose.yml   # Orquestación de servicios
+└── README.md
+```
+
+## ✅ Funcionalidades implementadas
+
+- Simulación de eventos IoT de ocupación de estacionamiento.
 - Publicación y consumo de mensajes mediante MQTT.
-- Procesamiento de los eventos recibidos.
-- Ejecución de los servicios en contenedores Docker.
-- Consulta de la API REST y su documentación interactiva FastAPI.
-- Preparación o utilización de almacenamiento SQLite local, según la configuración del proyecto.
-- Conexión funcional con Firebase Firestore.
-- Despliegue en Vercel operativo.
+- Procesamiento desacoplado de eventos.
+- Servicios locales organizados mediante Docker Compose.
+- API REST basada en FastAPI.
+- Persistencia local con SQLite.
+- Integración funcional con Firebase Firestore.
+- Dashboard web implementado y operativo.
+- Aplicación desplegada en Vercel.
+- Autenticación de usuarios y autorización según roles `admin` y `viewer`.
+- Separación de funciones de administración y visualización.
 
-**En validación:** controles de seguridad y funcionamiento integral del dashboard. **Pendiente:** conexión de una Raspberry Pi real.
+### 🔐 Roles y permisos
 
-## 📋 Requisitos
+| Funcionalidad | Admin | Viewer |
+|---|---|---|
+| Acceder al dashboard con sesión autorizada | ✅ | ✅ |
+| Consultar información permitida | ✅ | ✅ |
+| Acceder a funciones de administración | ✅ | ❌ |
+| Gestionar funciones reservadas a administradores | ✅ | ❌ |
 
-- Git.
-- Docker Desktop con Docker Compose habilitado.
-- Un navegador web para consultar la documentación de la API.
-- Visual Studio Code (opcional).
+**Importante:** ocultar la interfaz de administración no sustituye las reglas de seguridad de Firestore ni la autorización en el servidor. Las restricciones deben mantenerse en la capa de datos y en los servicios correspondientes.
 
-## 🚀 Instalación y ejecución local
+## 🚀 Instalación local
 
-### 1. Clonar el repositorio
+### 1. Requisitos
+
+- Git
+- Docker Desktop con Docker Compose
+- Variables y credenciales necesarias para las integraciones utilizadas
+- Navegador web
+
+### 2. Clonar el proyecto
 
 ```bash
-git clone <URL_DEL_REPOSITORIO>
-cd <CARPETA_DEL_PROYECTO>
+git clone https://github.com/CTorrejon1995/PTEC104-8571-S1-ESTACIONAMIENTO-INTELIGENTE.git
+cd PTEC104-8571-S1-ESTACIONAMIENTO-INTELIGENTE
 ```
 
-Reemplaza los valores entre `<>` por la URL y el nombre reales.
+### 3. Configurar variables de entorno
 
-### 2. Revisar la configuración
+Revisa `.env.example` y crea el archivo de configuración local según las variables que requiera tu entorno:
 
-Ubica el archivo `compose.yaml` o `docker-compose.yml`. Si el repositorio incluye un archivo `.env.example`, cópialo a `.env` y completa únicamente las variables necesarias.
+```bash
+cp .env.example .env
+```
 
-**Importante:** no subas contraseñas, tokens, claves privadas ni credenciales de Firebase al repositorio.
+Completa los valores necesarios sin publicar contraseñas, tokens, credenciales privadas ni claves de servicio. Las variables del despliegue en Vercel deben configurarse en el entorno correspondiente.
 
-### 3. Levantar los contenedores
-
-Desde la carpeta donde se encuentra el archivo Compose:
+### 4. Iniciar los microservicios
 
 ```bash
 docker compose up --build -d
 ```
 
-### 4. Comprobar el estado
+Consultar servicios y registros:
 
 ```bash
 docker compose ps
-```
-
-Para consultar los registros:
-
-```bash
 docker compose logs -f
 ```
 
-Para consultar solo algunos servicios, usa los nombres reales mostrados por `docker compose config --services`:
+Para identificar los servicios disponibles:
 
 ```bash
 docker compose config --services
 ```
 
-### 5. Consultar FastAPI
+### 5. Consultar la API
 
-Si la API publica el puerto `8000` en el equipo anfitrión, abre:
+Consulta los puertos publicados en `docker-compose.yml`. Si FastAPI está expuesta en el puerto 8000, su documentación interactiva estará en:
 
-- Documentación Swagger: http://localhost:8000/docs
-- Esquema OpenAPI: http://localhost:8000/openapi.json
+```text
+http://localhost:8000/docs
+```
 
-Si el puerto publicado es otro, reemplaza `8000` por el que indique Docker Compose. Los endpoints disponibles se muestran en Swagger y son la fuente de referencia para esta versión.
+La ruta y el puerto definitivos dependen de la configuración efectiva del servicio.
 
-### 6. Detener el sistema
+### 6. Detener los servicios
 
 ```bash
 docker compose down
 ```
 
-Evita `docker compose down -v` si deseas conservar los volúmenes de datos.
+## 🧪 Comprobaciones del sistema
 
-## 🧪 Verificación de funcionamiento
+1. Confirmar que los contenedores se ejecutan correctamente.
+2. Verificar que el simulador publique eventos MQTT y que el procesador los reciba.
+3. Consultar la API y revisar la persistencia configurada.
+4. Comprobar la visualización de datos en el dashboard.
+5. Iniciar sesión con una cuenta `admin` y comprobar las funciones administrativas.
+6. Iniciar sesión con una cuenta `viewer` y confirmar que no acceda a funciones administrativas.
+7. Comprobar que las reglas de Firestore y los servicios rechazan las operaciones no autorizadas.
+8. Verificar que el despliegue de Vercel funcione correctamente.
 
-1. Comprueba que los contenedores requeridos estén en ejecución con `docker compose ps`.
-2. Revisa los logs del simulador y del procesador; verifica que se publiquen y consuman mensajes MQTT.
-3. Abre `/docs` y ejecuta una solicitud a uno de los endpoints existentes.
-4. Si SQLite está habilitado, comprueba que los registros persistan según la configuración local.
-5. Verifica que las operaciones previstas con Firestore se reflejen correctamente en la base de datos.
-6. Comprueba que el despliegue en Vercel sea accesible y que las funciones principales respondan.
-7. Ejecuta pruebas de seguridad y del dashboard antes de darlos por validados.
+Las funcionalidades anteriores se reportan como operativas; las comprobaciones sirven como guía de reproducción y mantenimiento.
 
-## 🗂️ Estructura del proyecto
+## 🔌 Único paso pendiente: Raspberry Pi real
 
-La estructura exacta de carpetas y los nombres de servicios deben consultarse en el repositorio. Los componentes lógicos principales son:
+El sistema funciona actualmente con simulación de sensores. Para completar la integración física se requiere:
 
-```text
-Estacionamiento Inteligente
-├── Simulador IoT
-├── Broker MQTT
-├── Procesador de eventos
-├── API REST (FastAPI)
-├── Persistencia SQLite local
-├── Firebase Firestore (operativo)
-├── Despliegue Vercel (operativo)
-└── Configuración Docker Compose
-```
+1. Preparar la Raspberry Pi y conectar los sensores físicos previstos.
+2. Implementar o adaptar la lectura de sensores en el dispositivo.
+3. Configurar la conexión segura al broker MQTT.
+4. Publicar eventos con el formato que espera el procesador existente.
+5. Verificar que los eventos físicos lleguen al procesamiento, a la persistencia y al dashboard.
+6. Comparar el funcionamiento real con los resultados obtenidos mediante el simulador.
 
-Este esquema **no representa nombres literales de directorios**.
+**La Raspberry Pi todavía no se declara conectada ni probada.**
 
-## ☁️ Integraciones operativas
+## 🔒 Consideraciones de seguridad
 
-### Firebase Firestore
+- Mantener las credenciales fuera del repositorio.
+- Aplicar autorización por roles en Firestore y en los servicios que lo requieran.
+- Evitar que un usuario `viewer` pueda elevar sus privilegios o modificar información restringida.
+- Limitar el acceso a los recursos de la nube y a los endpoints según el principio de mínimo privilegio.
+- Revisar las reglas de Firestore y las variables de entorno después de cualquier cambio.
 
-La integración con **Firebase Firestore ya está funcionando**. Queda pendiente comprobar en profundidad las reglas de acceso, la protección de credenciales y el comportamiento frente a solicitudes no autorizadas. La topología exacta de escritura y lectura debe verificarse en el código.
+## 📌 Estado del proyecto
 
-### Vercel
+| Componente | Estado |
+|---|---|
+| Simulador IoT | ✅ Implementado |
+| Broker MQTT | ✅ Implementado |
+| Procesador de eventos | ✅ Implementado |
+| API REST | ✅ Implementada |
+| SQLite | ✅ Implementado |
+| Firebase Firestore | ✅ Operativo |
+| Dashboard web | ✅ Operativo |
+| Roles admin / viewer | ✅ Configurados y funcionando |
+| Despliegue Vercel | ✅ Operativo |
+| Raspberry Pi física | ⏳ Pendiente de integración |
 
-El **despliegue en Vercel ya está funcionando**. Queda por validar el dashboard completo, la gestión de variables de entorno y la seguridad de los recursos publicados. La URL del despliegue se incorporará cuando esté disponible.
+## 🔗 Enlaces
 
-## 🔐 Validaciones pendientes
-
-- **Seguridad:** revisar autenticación y autorización, reglas de Firestore, secretos y variables de entorno, permisos de API, CORS y exposición de endpoints.
-- **Dashboard:** comprobar carga de datos reales, actualización de ocupación, estados de error, funcionamiento desde Vercel y visualización en diferentes dispositivos.
-- **Raspberry Pi física:** configurar el dispositivo, conectar los sensores reales, publicar eventos por MQTT y contrastar sus lecturas con el simulador.
-
-> Ninguna de estas tres áreas se declara terminada o aprobada hasta completar las pruebas correspondientes.
-
-## 🧯 Solución de problemas
-
-**Error `no configuration file provided: not found`**
-
-Ejecuta Docker Compose desde el directorio que contiene el archivo Compose, o indica su ruta explícitamente:
-
-```bash
-docker compose -f ruta/al/compose.yaml ps
-```
-
-**La API no responde:** revisa `docker compose ps`, los logs del servicio API y el mapeo de puertos en Compose.
-
-**No aparecen mensajes MQTT:** verifica los logs del broker, simulador y procesador; comprueba que compartan la red y configuración MQTT correctas.
-
-**Los datos desaparecen al reiniciar:** revisa dónde se guarda SQLite y si su archivo está montado en un volumen persistente.
-
-## 🔜 Próximos pasos
-
-1. Realizar pruebas de seguridad de extremo a extremo, incluyendo Firestore y el despliegue en Vercel.
-2. Validar todas las vistas y flujos del dashboard con datos del sistema.
-3. Integrar una Raspberry Pi real y verificar su comunicación MQTT con los microservicios.
-4. Documentar evidencias de pruebas, URLs, endpoints y resultados finales.
+- **Código fuente:** https://github.com/CTorrejon1995/PTEC104-8571-S1-ESTACIONAMIENTO-INTELIGENTE
+- **Aplicación web:** https://ptec-104-8571-s1-estacionamiento-in-eta.vercel.app/
 
 ---
 
-**Versión documentada:** Fase 3C — Firestore y Vercel operativos; seguridad y dashboard en validación; Raspberry Pi real pendiente.
+**Proyecto académico — Evaluación Solemne: Sistema IoT con Microservicios.**
+
+**Estado:** implementación de software completada; pendiente únicamente la integración y prueba del hardware Raspberry Pi real.
