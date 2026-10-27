@@ -45,7 +45,12 @@ def ingest(event: Event, authorization: str | None = Header(default=None)):
     expected_site = os.getenv('SITE_ID', 'demo-site')
     if (event.device_id, event.org_id, event.site_id) != (expected_device, expected_org, expected_site):
         raise HTTPException(403, 'Dispositivo o sitio no autorizado')
-    if event.topic != 'parking/summary' and not event.topic.startswith('parking/state/'):
+    allowed_topic = (
+        event.topic == 'parking/summary'
+        or (event.topic.startswith('parking/state/') and len(event.topic.split('/')) == 3 and bool(event.topic.split('/')[2]))
+        or (event.topic.startswith('parking/pir/') and len(event.topic.split('/')) == 4 and bool(event.topic.split('/')[2]) and event.topic.endswith('/event'))
+    )
+    if not allowed_topic:
         raise HTTPException(422, 'Tópico no permitido')
     doc = get_db().collection('organizations').document(expected_org).collection('sites').document(expected_site).collection('events').document(event.event_id)
     try:

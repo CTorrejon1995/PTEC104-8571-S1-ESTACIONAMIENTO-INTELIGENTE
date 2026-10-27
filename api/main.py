@@ -61,6 +61,7 @@ def on_connect(client, userdata, flags, reason_code, properties):
     if mqtt_connected:
         client.subscribe('parking/state/+', qos=1)
         client.subscribe('parking/summary', qos=1)
+        client.subscribe('parking/pir/+/event', qos=1)
         print('[API] MQTT conectado; persistiendo eventos en SQLite', flush=True)
 
 
@@ -82,6 +83,10 @@ def on_message(client, userdata, msg):
             elif msg.topic.startswith('parking/state/'):
                 space_id = msg.topic.rsplit('/', 1)[-1]
                 spaces[space_id] = data
+        if msg.topic.startswith('parking/pir/') and msg.topic.endswith('/event'):
+            if not isinstance(data.get('event'), str) or not isinstance(data.get('device_id'), str):
+                print('[API] Evento PIR sin campos obligatorios; ignorado', flush=True)
+                return
         if not msg.retain:
             save_event(msg.topic, data)
     except (ValueError, sqlite3.Error) as exc:
