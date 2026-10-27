@@ -677,3 +677,6 @@ td{
         grid-template-columns:1fr
     }
 }
+
+/* Separación visual entre telemetría física y simulación */
+.pir-panel{margin-bottom:26px;border-left:4px solid #21a67a}.pir-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:20px 0}.pir-metrics>div{padding:18px;border:1px solid var(--border,#e2e8f0);border-radius:12px;display:flex;flex-direction:column;gap:7px;min-width:0}.pir-metrics small,.pir-metrics span{color:#64748b}.pir-metrics strong{font-size:20px;overflow-wrap:anywhere}.pir-feed{margin-top:12px}.pir-feed h3,.sim-heading h2{margin:0 0 10px}.pir-feed-row{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid #e2e8f0}.pir-feed-row time{color:#64748b;font-size:12px}.sim-heading{margin:24px 0 14px}.sim-heading p{color:#64748b;margin:4px 0}.pir-device-note{padding:18px;border:1px solid #a7e2d2;border-radius:12px;margin-bottom:22px}.pir-device-note p{margin:8px 0}.pir-device-note small{color:#64748b}@media(max-width:750px){.pir-metrics{grid-template-columns:1fr}.pir-feed-row{flex-direction:column;gap:4px}}
