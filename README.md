@@ -1,212 +1,293 @@
-# 🚗 Estacionamiento Inteligente IoT con Microservicios
+# 🚗 Parking Smart — Estacionamiento Inteligente IoT con Microservicios
 
-**Evaluación Solemne — Sistema IoT con Microservicios**
+**Proyecto PTEC104-8571-S1 · Implementación finalizada · Octubre de 2026**
 
-[![Estado](https://img.shields.io/badge/Estado-Software%20operativo-brightgreen)](https://github.com/CTorrejon1995/PTEC104-8571-S1-ESTACIONAMIENTO-INTELIGENTE)
-[![Hardware](https://img.shields.io/badge/Raspberry%20Pi-Integraci%C3%B3n%20pendiente-orange)](https://github.com/CTorrejon1995/PTEC104-8571-S1-ESTACIONAMIENTO-INTELIGENTE)
+[![Dashboard](https://img.shields.io/badge/Dashboard-Vercel-000000?logo=vercel)](https://ptec-104-8571-s1-estacionamiento-in-eta.vercel.app/)
+[![Repositorio](https://img.shields.io/badge/Código-GitHub-181717?logo=github)](https://github.com/CTorrejon1995/PTEC104-8571-S1-ESTACIONAMIENTO-INTELIGENTE)
 
-Sistema de estacionamiento inteligente basado en una arquitectura IoT de microservicios. Permite simular eventos de ocupación, transmitirlos mediante MQTT, procesarlos y consultar la información desde una API y un dashboard web conectado a Firebase Firestore.
+## Descripción
 
-> **Estado actual (octubre de 2026):** el software, el dashboard, la integración con Firestore, el despliegue en Vercel y el control de acceso por roles `admin` y `viewer` están implementados y funcionando. **La única integración pendiente es reemplazar o complementar el simulador con una Raspberry Pi física.**
+**Parking Smart** es una plataforma de monitoreo IoT para estacionamientos, desarrollada con una arquitectura de microservicios. Integra una **Raspberry Pi 4 con sensor PIR HC-SR501**, mensajería **MQTT**, procesamiento de eventos, persistencia **SQLite**, sincronización con **Firebase Firestore** y un **dashboard web desplegado en Vercel**.
 
-## 🌐 Aplicación web
+El sistema distingue expresamente entre **eventos reales de movimiento** obtenidos por el PIR físico y **datos simulados de ocupación** de estacionamientos. El PIR detecta movimiento; **no mide distancias ni determina por sí solo si una plaza está ocupada**.
 
-**[Abrir dashboard desplegado en Vercel](https://ptec-104-8571-s1-estacionamiento-in-eta.vercel.app/)**
+- **Repositorio:** https://github.com/CTorrejon1995/PTEC104-8571-S1-ESTACIONAMIENTO-INTELIGENTE
+- **Dashboard:** https://ptec-104-8571-s1-estacionamiento-in-eta.vercel.app/
 
-El acceso a las funciones depende del usuario autenticado y de su rol asignado.
+## Estado del proyecto
 
-## 🎯 Objetivo
+| Componente | Estado |
+| --- | --- |
+| Raspberry Pi 4 y sensor PIR HC-SR501 | ✅ Integrados; eventos físicos visibles en el dashboard |
+| Publicación y procesamiento de eventos MQTT | ✅ Implementados |
+| Microservicios Mosquitto, processor y API | ✅ Implementados con Docker Compose |
+| API REST con FastAPI | ✅ Implementada |
+| Persistencia local SQLite | ✅ Implementada |
+| Sincronización con Firebase Firestore | ✅ Operativa |
+| Dashboard en Vercel | ✅ Desplegado |
+| Roles `admin` y `viewer` | ✅ Configurados y probados funcionalmente |
+| Separación de datos físicos y simulados | ✅ Visible en el dashboard |
+| Inicio automático del sensor PIR | ✅ Configurado mediante systemd |
 
-Construir un sistema modular para registrar y visualizar eventos de ocupación de estacionamientos, separando la generación de eventos, la mensajería, el procesamiento, la persistencia y la interfaz web. La arquitectura permite comenzar con sensores simulados y posteriormente incorporar hardware real.
+> **Alcance:** El proyecto está finalizado según la implementación reportada. Las capturas muestran eventos físicos y simulados en el panel. El aviso «Sin actividad reciente» es compatible con un sensor que no ha detectado movimiento en el período considerado; no implica necesariamente una falla.
 
-## 🏗️ Arquitectura general
+## Arquitectura general
+
+El siguiente diagrama presenta los componentes como **bloques conectados**, diferenciando el origen físico de los eventos simulados y mostrando el recorrido de los datos hasta el dashboard.
 
 ```mermaid
-flowchart LR
-    S[Simulador IoT] -->|Eventos| M[Broker MQTT Mosquitto]
-    M --> P[Procesador de eventos]
-    P --> L[(SQLite local)]
-    P --> C[Servicios / integración en la nube]
-    C --> F[(Firebase Firestore)]
-    F --> W[Dashboard web]
-    A[Autenticación y roles] --> W
-    R[Raspberry Pi real - pendiente] -.->|Eventos MQTT futuros| M
+flowchart TB
+    subgraph HARDWARE["Hardware físico · Raspberry Pi 4"]
+        PIR["Sensor PIR HC-SR501<br/>Detección de movimiento"]
+        GPIO["GPIO17<br/>estacionamientoF_mqtt.py"]
+        PIR --> GPIO
+    end
+
+    subgraph EDGE["Microservicios · Docker Compose"]
+        MQTT["Mosquitto<br/>Broker MQTT"]
+        PROC["Processor<br/>Procesamiento de eventos"]
+        DB[("SQLite<br/>Persistencia local")]
+        API["FastAPI<br/>API REST y sincronización"]
+        SIM["Simulador<br/>Ocupación virtual P01–P08"]
+        MQTT --> PROC
+        PROC --> DB
+        DB <--> API
+        SIM -->|Eventos simulados| MQTT
+    end
+
+    subgraph CLOUD["Servicios en la nube"]
+        FS[("Firebase Firestore<br/>Eventos y datos sincronizados")]
+        AUTH["Autenticación y roles<br/>admin / viewer"]
+        WEB["Dashboard web · Vercel<br/>Resumen · Historial · Alertas · Dispositivos"]
+        FS --> WEB
+        AUTH --> WEB
+    end
+
+    GPIO -->|"MQTT · parking/pir/pir-entrada-01/event"| MQTT
+    API -->|Sincronización| FS
+
+    classDef physical fill:#e7f8f2,stroke:#149b78,color:#103d31,stroke-width:2px;
+    classDef service fill:#eaf1ff,stroke:#4474bb,color:#152c53,stroke-width:1.5px;
+    classDef store fill:#fff2db,stroke:#c38b2e,color:#533a0d,stroke-width:1.5px;
+    classDef cloud fill:#f1ebff,stroke:#8463c5,color:#302050,stroke-width:1.5px;
+    class PIR,GPIO physical;
+    class MQTT,PROC,API,SIM service;
+    class DB,FS store;
+    class AUTH,WEB cloud;
 ```
 
-> Esquema conceptual de los componentes del proyecto. Las rutas concretas de lectura y escritura entre servicios dependen de la configuración del código.
+> **Importante:** el sensor PIR informa detecciones de movimiento, **no ocupación de plazas**. Los estados de las plazas P01–P08 provienen del simulador y se presentan por separado en el dashboard. El diagrama es una vista lógica de los componentes.
 
-## 🧰 Tecnologías
+## Tecnologías
 
-| Tecnología | Uso |
-|---|---|
-| Python | Simulador y lógica de servicios |
-| MQTT / Eclipse Mosquitto | Mensajería de eventos IoT |
-| FastAPI | API REST |
-| SQLite | Persistencia local |
-| Firebase Firestore | Almacenamiento e integración de datos en la nube |
-| Docker y Docker Compose | Contenedores y orquestación local |
-| Vercel | Despliegue de la aplicación web |
-| Dashboard web | Visualización y administración según permisos |
-| Raspberry Pi | Dispositivo físico por integrar |
+| Capa | Tecnología | Función |
+| --- | --- | --- |
+| Hardware | Raspberry Pi 4, HC-SR501 | Detección física de movimiento |
+| Mensajería | MQTT, Eclipse Mosquitto | Transporte de eventos |
+| Procesamiento | Python, Docker Compose | Ejecución de microservicios |
+| Backend | FastAPI | API REST |
+| Almacenamiento local | SQLite | Persistencia de eventos |
+| Nube | Firebase Firestore | Datos sincronizados para la plataforma |
+| Frontend | Dashboard web, Vercel | Visualización y administración |
+| Arranque automático | systemd, Docker | Inicio al encender la Raspberry Pi |
 
-## 📂 Estructura del repositorio
+## Funcionalidades del dashboard
+
+### Sensor físico Raspberry Pi 4
+
+El panel muestra la última detección del sensor **PIR de entrada**, el número de movimientos observados, el origen físico de los eventos y un historial de detecciones como **«Movimiento detectado»** y **«Movimiento finalizado»**. La señal se obtiene del sensor **HC-SR501 conectado a GPIO17** y se identifica con el tópico:
 
 ```text
-PTEC104-8571-S1-ESTACIONAMIENTO-INTELIGENTE/
-├── api/                 # API local
-├── cloud-api/           # Servicios de integración en la nube
-├── mosquitto/           # Configuración del broker MQTT
-├── processor/           # Procesamiento de eventos
-├── simulator/           # Simulación de sensores IoT
-├── web/                 # Aplicación web / dashboard
-├── .env.example         # Ejemplo de variables de entorno
-├── .gitignore
-├── docker-compose.yml   # Orquestación de servicios
-└── README.md
+parking/pir/pir-entrada-01/event
 ```
 
-## ✅ Funcionalidades implementadas
+### Estacionamientos simulados
 
-- Simulación de eventos IoT de ocupación de estacionamiento.
-- Publicación y consumo de mensajes mediante MQTT.
-- Procesamiento desacoplado de eventos.
-- Servicios locales organizados mediante Docker Compose.
-- API REST basada en FastAPI.
-- Persistencia local con SQLite.
-- Integración funcional con Firebase Firestore.
-- Dashboard web implementado y operativo.
-- Aplicación desplegada en Vercel.
-- Autenticación de usuarios y autorización según roles `admin` y `viewer`.
-- Separación de funciones de administración y visualización.
+El panel ofrece una demostración independiente de ocupación, con plazas identificadas como `P01` a `P08`, estados **Libre/Ocupado**, distancias simuladas, indicadores agregados y actividad reciente. **Estas distancias y estados no son mediciones del PIR físico.**
 
-### 🔐 Roles y permisos
+### Control de acceso
 
-| Funcionalidad | Admin | Viewer |
-|---|---|---|
-| Acceder al dashboard con sesión autorizada | ✅ | ✅ |
-| Consultar información permitida | ✅ | ✅ |
-| Acceder a funciones de administración | ✅ | ❌ |
-| Gestionar funciones reservadas a administradores | ✅ | ❌ |
+- **`admin`:** acceso al monitoreo y a las funciones de administración autorizadas.
+- **`viewer`:** acceso de consulta al dashboard, sin mostrar la sección de Administración.
 
-**Importante:** ocultar la interfaz de administración no sustituye las reglas de seguridad de Firestore ni la autorización en el servidor. Las restricciones deben mantenerse en la capa de datos y en los servicios correspondientes.
+Los roles están configurados y han sido probados funcionalmente. Para mantener la protección, las restricciones deben aplicarse también en las reglas de Firestore y no únicamente en la interfaz.
 
-## 🚀 Instalación local
+## Puesta en marcha con Docker Compose
 
-### 1. Requisitos
-
-- Git
-- Docker Desktop con Docker Compose
-- Variables y credenciales necesarias para las integraciones utilizadas
-- Navegador web
-
-### 2. Clonar el proyecto
+Clonar el repositorio:
 
 ```bash
 git clone https://github.com/CTorrejon1995/PTEC104-8571-S1-ESTACIONAMIENTO-INTELIGENTE.git
 cd PTEC104-8571-S1-ESTACIONAMIENTO-INTELIGENTE
 ```
 
-### 3. Configurar variables de entorno
+### Configuración del archivo `.env`
 
-Revisa `.env.example` y crea el archivo de configuración local según las variables que requiera tu entorno:
+**Antes de iniciar los contenedores, hay que crear el archivo `.env`.** El repositorio incluye un archivo `.env.example` que sirve de **plantilla**: muestra el formato y los nombres de las variables esperadas, pero no reemplaza el archivo `.env` de cada instalación.
+
+En la carpeta donde se encuentre `.env.example`, ejecutar:
 
 ```bash
 cp .env.example .env
+nano .env
 ```
 
-Completa los valores necesarios sin publicar contraseñas, tokens, credenciales privadas ni claves de servicio. Las variables del despliegue en Vercel deben configurarse en el entorno correspondiente.
+En Windows se puede copiar el archivo manualmente y renombrar la copia a `.env`.
 
-### 4. Iniciar los microservicios
+**¿Qué va en cada archivo?**
+
+| Archivo | Para qué sirve | ¿Se sube a GitHub? |
+| --- | --- | --- |
+| `.env.example` | Plantilla con los nombres de las variables y valores de ejemplo **sin secretos reales**. | Sí |
+| `.env` | Configuración efectiva de la instalación: direcciones, puertos, identificadores y credenciales según lo que pida la plantilla. | **No** |
+| `compose.yaml` / `docker-compose.yml` | Define los contenedores y puede leer variables del `.env`. | Sí, sin contraseñas incrustadas |
+| Credenciales privadas de Firebase, si las utiliza el backend | Archivo de cuenta de servicio o secreto configurado mediante variable de entorno, según la implementación. | **No** |
+
+Al editar `.env`, **conservar exactamente los nombres de las variables** de `.env.example` y reemplazar solamente los valores que correspondan. Como referencia:
+
+- **MQTT:** dirección del broker, puerto y autenticación *si la plantilla los solicita*. Si los contenedores están en la misma red de Compose, normalmente se usa el nombre del servicio como host; el script PIR ejecutado en la Raspberry fuera de Docker puede necesitar `localhost` o la IP del equipo.
+- **API y base local:** direcciones, puertos o rutas de almacenamiento, cuando estén definidos como variables.
+- **Firebase/Firestore:** identificadores de proyecto y configuración de sincronización; cualquier credencial privada debe mantenerse fuera del repositorio.
+- **Frontend/Vercel:** las variables que necesite el despliegue web se configuran también en los ajustes del proyecto de Vercel. Las variables expuestas al navegador no deben contener secretos de servidor.
+
+> **Importante:** estos son grupos de configuración orientativos, **no nombres literales de variables**. Los nombres exactos y cuáles son obligatorias dependen del `.env.example` del repositorio. No agregar variables inventadas ni publicar claves reales en capturas o commits.
+
+Verificar que `.env` esté excluido del control de versiones (por ejemplo, en `.gitignore`) y comprobar la configuración de Compose antes de arrancar:
 
 ```bash
-docker compose up --build -d
+docker compose config --quiet
 ```
 
-Consultar servicios y registros:
+Este comando comprueba la configuración de Compose, pero **no valida** que las credenciales externas sean correctas. **No subir claves privadas, archivos `.env` ni credenciales de servicio a GitHub.**
+
+Desde el directorio que contiene el archivo Compose correspondiente:
 
 ```bash
+docker compose up -d --build
 docker compose ps
 docker compose logs -f
 ```
 
-Para identificar los servicios disponibles:
+Los servicios **`mosquitto`**, **`processor`** y **`api`** deben tener la política de reinicio:
+
+```yaml
+restart: unless-stopped
+```
+
+Habilitar Docker en el arranque:
 
 ```bash
-docker compose config --services
+sudo systemctl enable --now docker
 ```
 
-### 5. Consultar la API
+> Los nombres exactos de archivos Compose, rutas y variables deben revisarse en la instalación clonada.
 
-Consulta los puertos publicados en `docker-compose.yml`. Si FastAPI está expuesta en el puerto 8000, su documentación interactiva estará en:
+## Arranque automático de Raspberry Pi 4
 
-```text
-http://localhost:8000/docs
-```
+El sistema utiliza **Docker Compose** para los microservicios y **systemd** para iniciar automáticamente el programa que lee el sensor PIR real. El simulador se ejecuta **manualmente**, evitando mezclar su operación con el arranque del hardware físico.
 
-La ruta y el puerto definitivos dependen de la configuración efectiva del servicio.
-
-### 6. Detener los servicios
+### 1. Crear el servicio
 
 ```bash
-docker compose down
+sudo nano /etc/systemd/system/parking-pir.service
 ```
 
-## 🧪 Comprobaciones del sistema
+Contenido utilizado en la Raspberry Pi del proyecto:
 
-1. Confirmar que los contenedores se ejecutan correctamente.
-2. Verificar que el simulador publique eventos MQTT y que el procesador los reciba.
-3. Consultar la API y revisar la persistencia configurada.
-4. Comprobar la visualización de datos en el dashboard.
-5. Iniciar sesión con una cuenta `admin` y comprobar las funciones administrativas.
-6. Iniciar sesión con una cuenta `viewer` y confirmar que no acceda a funciones administrativas.
-7. Comprobar que las reglas de Firestore y los servicios rechazan las operaciones no autorizadas.
-8. Verificar que el despliegue de Vercel funcione correctamente.
+```ini
+[Unit]
+Description=Sensor PIR - Estacionamiento Inteligente
+Wants=network-online.target
+After=network-online.target docker.service
 
-Las funcionalidades anteriores se reportan como operativas; las comprobaciones sirven como guía de reproducción y mantenimiento.
+[Service]
+Type=simple
+User=chris
+WorkingDirectory=/home/chris/parking-iot/raspberry
+ExecStart=/usr/bin/python3 -u /home/chris/parking-iot/raspberry/estacionamientoF_mqtt.py
+Restart=always
+RestartSec=5
 
-## 🔌 Único paso pendiente: Raspberry Pi real
+[Install]
+WantedBy=multi-user.target
+```
 
-El sistema funciona actualmente con simulación de sensores. Para completar la integración física se requiere:
+**Importante:** adaptar `User`, `WorkingDirectory` y `ExecStart` a la cuenta y ubicación reales del proyecto. Comprobar que Python tenga instaladas las dependencias del script y que el usuario pueda acceder al GPIO.
 
-1. Preparar la Raspberry Pi y conectar los sensores físicos previstos.
-2. Implementar o adaptar la lectura de sensores en el dispositivo.
-3. Configurar la conexión segura al broker MQTT.
-4. Publicar eventos con el formato que espera el procesador existente.
-5. Verificar que los eventos físicos lleguen al procesamiento, a la persistencia y al dashboard.
-6. Comparar el funcionamiento real con los resultados obtenidos mediante el simulador.
+### 2. Activar el servicio
 
-**La Raspberry Pi todavía no se declara conectada ni probada.**
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now parking-pir
+```
 
-## 🔒 Consideraciones de seguridad
+### 3. Verificar su funcionamiento
 
-- Mantener las credenciales fuera del repositorio.
-- Aplicar autorización por roles en Firestore y en los servicios que lo requieran.
-- Evitar que un usuario `viewer` pueda elevar sus privilegios o modificar información restringida.
-- Limitar el acceso a los recursos de la nube y a los endpoints según el principio de mínimo privilegio.
-- Revisar las reglas de Firestore y las variables de entorno después de cualquier cambio.
+```bash
+sudo systemctl status parking-pir
+journalctl -u parking-pir -f
+```
 
-## 📌 Estado del proyecto
+Para comprobar los contenedores:
 
-| Componente | Estado |
-|---|---|
-| Simulador IoT | ✅ Implementado |
-| Broker MQTT | ✅ Implementado |
-| Procesador de eventos | ✅ Implementado |
-| API REST | ✅ Implementada |
-| SQLite | ✅ Implementado |
-| Firebase Firestore | ✅ Operativo |
-| Dashboard web | ✅ Operativo |
-| Roles admin / viewer | ✅ Configurados y funcionando |
-| Despliegue Vercel | ✅ Operativo |
-| Raspberry Pi física | ⏳ Pendiente de integración |
+```bash
+docker compose ps
+```
 
-## 🔗 Enlaces
+### 4. Prueba después de reiniciar
 
-- **Código fuente:** https://github.com/CTorrejon1995/PTEC104-8571-S1-ESTACIONAMIENTO-INTELIGENTE
-- **Aplicación web:** https://ptec-104-8571-s1-estacionamiento-in-eta.vercel.app/
+```bash
+sudo reboot
+```
+
+Tras reconectarse a la Raspberry Pi:
+
+```bash
+systemctl is-enabled parking-pir
+systemctl is-active parking-pir
+sudo systemctl status docker
+docker compose ps
+```
+
+Generar movimiento delante del PIR y verificar que el dashboard registre eventos físicos nuevos. Si no aparecen, revisar los logs del servicio, la conexión MQTT y la sincronización con Firestore.
+
+## Comprobación de sincronización
+
+Cuando la API local esté disponible en el puerto configurado para el proyecto (por ejemplo, `8000`), el estado de sincronización se puede consultar mediante:
+
+```bash
+curl -s http://127.0.0.1:8000/parking/sync-status | python3 -m json.tool
+```
+
+La respuesta informa el total de eventos, los eventos pendientes y si la nube está configurada. Una cola pendiente puede causar retrasos entre la detección y su aparición en el dashboard.
+
+## Evidencia funcional
+
+Las capturas de la implementación final muestran:
+
+- Eventos del sensor físico Raspberry Pi 4, con origen de datos identificado como **Sensor físico**.
+- Actividad de detección y finalización de movimiento.
+- Panel de estacionamientos simulados separado de las lecturas del PIR.
+- Ocho plazas simuladas, con estados y métricas agregadas.
+- Sesión `viewer` con navegación de monitoreo y sin acceso visible a Administración.
+
+Los valores observados en las capturas son ejemplos puntuales y cambian conforme se generan nuevos eventos.
+
+## Consideraciones de seguridad
+
+- Mantener las credenciales de Firebase y las claves privadas fuera del repositorio.
+- Aplicar permisos `admin` y `viewer` en las reglas de seguridad de Firestore, además del frontend.
+- Evitar escrituras de eventos o modificaciones de roles desde cuentas sin autorización.
+- Verificar que usuarios no autenticados no puedan leer datos privados.
+- No exponer el broker MQTT ni la API local innecesariamente a Internet.
+- Revisar periódicamente registros de Docker, systemd y sincronización.
+
+## Conclusión
+
+**Parking Smart** integra hardware físico, servicios desacoplados, mensajería MQTT, persistencia local, sincronización en la nube y una interfaz web con perfiles diferenciados. La Raspberry Pi 4 publica eventos reales del PIR, mientras el simulador permite demostrar la ocupación de plazas sin atribuir esas mediciones al sensor físico.
+
+El proyecto se presenta como **implementación finalizada**, con arranque automático del sensor y los microservicios, dashboard operativo y separación explícita entre telemetría física y datos de simulación.
 
 ---
 
-**Proyecto académico — Evaluación Solemne: Sistema IoT con Microservicios.**
-
-**Estado:** implementación de software completada; pendiente únicamente la integración y prueba del hardware Raspberry Pi real.
+**Proyecto académico:** PTEC104-8571-S1 — Estacionamiento Inteligente IoT con Microservicios.
