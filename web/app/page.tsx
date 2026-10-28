@@ -17,31 +17,41 @@ const pirLabel=(e:EventItem)=>e.payload.event==='movimiento'?'Movimiento detecta
 const shortTopic=(topic:string)=>topic==='parking/summary'?'Resumen simulado':topic.startsWith('parking/state/')?'Estado simulado '+topic.split('/').pop():isPir(topic)?'PIR físico · '+topic.split('/')[2]:topic;
 const isOccupied=(v:unknown)=>v===true||v==='true'||v==='OCUPADO';
 
-function OccupancyChart({items}:{items:EventItem[]}){
+function OccupancyChart({items,now}:{items:EventItem[];now:number}){
+ const windowStart=now-120000;
  const points=useMemo(()=>{
-  const ordered=[...new Map(items.filter(e=>e.topic.startsWith('parking/state/')&&Number.isFinite(getTime(e))).map(e=>[e.id,e])).values()].sort((a,b)=>getTime(a)-getTime(b));
-  const states=new Map<string,boolean>();const result:{t:number;n:number}[]=[];
-  for(const e of ordered){const id=e.topic.split('/').pop()||'';if(!/^P0[1-8]$/.test(id))continue;
-   states.set(id,isOccupied(e.payload.occupied));if(states.size!==8)continue;
-   const n=[...states.values()].filter(Boolean).length,t=getTime(e);
+  const ordered=[...new Map(items.filter(e=>e.topic.startsWith('parking/state/')&&Number.isFinite(getTime(e))&&getTime(e)<=now).map(e=>[e.id,e])).values()].sort((a,b)=>getTime(a)-getTime(b));
+  const states=new Map<string,boolean>();
+  const result:{t:number;n:number}[]=[];
+  for(const e of ordered){
+   const id=e.topic.split('/').pop()||'';
+   if(!/^P0[1-8]$/.test(id))continue;
+   const t=getTime(e);
+   if(t>=windowStart&&result.length===0&&states.size===8){
+    result.push({t:windowStart,n:[...states.values()].filter(Boolean).length});
+   }
+   states.set(id,isOccupied(e.payload.occupied));
+   if(t<windowStart||states.size!==8)continue;
+   const n=[...states.values()].filter(Boolean).length;
    if(result.length&&result[result.length-1].t===t)result[result.length-1]={t,n};
    else if(!result.length||result[result.length-1].n!==n)result.push({t,n});
-  }return result;
- },[items]);
+  }
+  return result;
+ },[items,now,windowStart]);
  const w=900,h=230,l=40,r=15,top=15,b=35;
- const first=points[0]?.t??0,last=points[points.length-1]?.t??0;
- const x=(t:number)=>l+(last===first ? 0.5 : (t-first)/(last-first))*(w-l-r);
+ const x=(t:number)=>l+(Math.max(windowStart,Math.min(now,t))-windowStart)/120000*(w-l-r);
  const y=(n:number)=>top+(8-n)/8*(h-top-b);
  const line=points.map((p,i)=>(i?'L':'M')+x(p.t).toFixed(1)+','+y(p.n).toFixed(1)).join(' ');
- const fmt=(t:number)=>new Date(t).toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'});
- return <section className="surface" style={{marginBottom:20}}><div className="section-head"><div><h2>Evolución de ocupación</h2><p>Historial de los ocho espacios simulados</p></div><span className="pill">{points.length?`${points[points.length-1].n} de 8 ocupados`:'Sin historial suficiente'}</span></div>
- {points.length>=2?<svg viewBox={`0 0 ${w} ${h}`} role="img" aria-label="Gráfico de línea de espacios ocupados" style={{display:'block',width:'100%'}}>
+ const fmt=(t:number)=>new Date(t).toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+ const recent=items.some(e=>e.topic.startsWith('parking/state/')&&getTime(e)>=windowStart&&getTime(e)<=now);
+ return <section className="surface" style={{marginBottom:20}}><div className="section-head"><div><h2>Evolución de ocupación · últimos 2 minutos</h2><p>Ventana móvil de los ocho espacios simulados</p></div><span className="pill">{points.length?`${points[points.length-1].n} de 8 ocupados`:'Sin datos suficientes'}</span></div>
+ {points.length?<svg viewBox={`0 0 ${w} ${h}`} role="img" aria-label="Ocupación de los ocho espacios durante los últimos dos minutos" style={{display:'block',width:'100%'}}>
  {[0,2,4,6,8].map(n=><g key={n}><line x1={l} x2={w-r} y1={y(n)} y2={y(n)} stroke="#e2e8f0" strokeDasharray="4 5"/><text x={l-10} y={y(n)+4} textAnchor="end" fontSize="12" fill="#64748b">{n}</text></g>)}
  <path d={line} fill="none" stroke="#059669" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round"/>
- <circle cx={x(last)} cy={y(points[points.length-1].n)} r="5" fill="#059669"/>
- {[0,.25,.5,.75,1].map((f,i)=><text key={i} x={l+f*(w-l-r)} y={h-9} textAnchor={i===0?'start':i===4?'end':'middle'} fontSize="12" fill="#64748b">{fmt(first+f*(last-first))}</text>)}
- </svg>:<p className="empty">Aún no hay suficientes cambios registrados con los ocho espacios identificados.</p>}
- <p className="footnote">Datos simulados. Reconstrucción con eventos disponibles en Firestore; no es una medición del PIR físico ni un historial completo.</p></section>;
+ <circle cx={x(points[points.length-1].t)} cy={y(points[points.length-1].n)} r="5" fill="#059669"/>
+ {[0,.25,.5,.75,1].map((f,i)=><text key={i} x={l+f*(w-l-r)} y={h-9} textAnchor={i===0?'start':i===4?'end':'middle'} fontSize="12" fill="#64748b">{fmt(windowStart+f*120000)}</text>)}
+ </svg>:<p className="empty">Esperando estados suficientes de los ocho espacios en los últimos 2 minutos.</p>}
+ <p className="footnote">{recent?'Datos simulados recibidos desde Firestore.':'Sin eventos nuevos en esta ventana; revisa la sincronización.'} El gráfico no mide el PIR físico. Si faltan estados anteriores, la línea comienza cuando se conocen los ocho espacios.</p></section>;
 }
 
 export default function Home(){
@@ -82,7 +92,7 @@ export default function Home(){
   {error&&<div className="error" role="alert">{error}</div>}
   {role==='error'?<section className="surface"><h2>No se pudieron verificar los permisos</h2><p>Comprueba tu conexión y la configuración de Firebase. Cierra sesión y vuelve a ingresar si el problema continúa.</p></section>:role==='sin acceso'?<section className="surface"><h2>Acceso no autorizado</h2><p>Tu usuario no pertenece a esta organización. Solicita acceso al administrador.</p></section>:!['admin','viewer'].includes(role)?<section className="surface">Comprobando permisos de la organización…</section>:<>
    {tab==='overview'&&<><section className="pir-panel surface"><div className="section-head"><div><p className="eyebrow">HARDWARE REAL · RASPBERRY PI 4</p><h2>Sensor PIR de entrada</h2><p>HC-SR501 · GPIO17 · detección de movimiento, no ocupación de plazas</p></div><span className={'status-chip '+(pirFresh?'chip-green':'chip-red')}>{pirFresh?'Actividad reciente':'Sin actividad reciente'}</span></div><div className="pir-metrics"><div><small>Última detección</small><strong>{pirLatest?pirLabel(pirLatest):'Sin eventos PIR'}</strong><span>{pirLatest?dateText(pirLatest.created_at):'Esperando datos reales'}</span></div><div><small>Movimientos observados</small><strong>{pirMoves.length}</strong><span>En la muestra consultada (máx. 200)</span></div><div><small>Origen de datos</small><strong>Sensor físico</strong><span>{pirLatest?pirLatest.topic:'parking/pir/+/event'}</span></div></div><div className="pir-feed"><h3>Últimos eventos físicos</h3>{pirEvents.slice(0,5).map(e=><div className="pir-feed-row" key={e.id}><span>{pirLabel(e)}</span><time>{dateText(e.created_at)}</time></div>)}{!pirEvents.length&&<p className="empty">Aún no se registran detecciones del PIR en Firestore.</p>}</div></section><div className="sim-heading"><h2>Estacionamientos simulados</h2><p>Demostración de ocupación: estos datos NO son mediciones del PIR físico.</p></div><section className="stats"><div className="stat"><div className="stat-top"><span>Espacios observados</span><span className="stat-icon">▦</span></div><strong>{spaces.length}</strong><small>Identificados en eventos recientes</small></div><div className="stat"><div className="stat-top"><span>Disponibles</span><span className="stat-icon green">✓</span></div><strong>{free}</strong><small>Libres según último estado recibido</small></div><div className="stat"><div className="stat-top"><span>Ocupados</span><span className="stat-icon red">●</span></div><strong>{occupied}</strong><small>{spaces.length?Math.round(occupied/spaces.length*100):0}% de ocupación observada</small></div><div className="stat"><div className="stat-top"><span>Ingresos reportados</span><span className="stat-icon blue">↗</span></div><strong>{summary&&Number.isFinite(asNum(summary.payload.vehicle_entries))?asNum(summary.payload.vehicle_entries):'—'}</strong><small>Según último resumen MQTT</small></div></section>
-   <OccupancyChart items={[...simEvents,...spaceHistoryEvents]}/><div className="two-col"><section className="surface"><div className="section-head"><div><h2>Mapa de espacios simulados</h2><p>Estado más reciente por estacionamiento virtual</p></div><span className="pill">{spaces.length} espacios</span></div><div className="space-grid">{spaces.length?spaces.map(s=><div className={'parking-space '+(s.occupied?'occupied':'available')} key={s.id}><span className="car-icon">▰</span><strong>{s.id}</strong><span className="space-status">{s.occupied?'Ocupado':'Libre'}</span><small>{Number.isFinite(s.distance)?`${s.distance} cm`:'Sin distancia'}</small></div>):<p className="empty">Todavía no se recibieron estados de espacios.</p>}</div><div className="legend"><span><i className="legend-green"/>Libre</span><span><i className="legend-red"/>Ocupado</span></div></section><section className="surface"><div className="section-head"><div><h2>Actividad reciente</h2><p>Últimos eventos sincronizados</p></div><button className="text-button" onClick={()=>setTab('history')}>Ver todos →</button></div><div className="activity-list">{events.slice(0,7).map(e=><div className="activity" key={e.id}><span className="activity-icon">↗</span><div><strong>{shortTopic(e.topic)}</strong><small>{e.topic.startsWith('parking/state/')?(isOccupied(e.payload.occupied)?'Espacio ocupado':'Espacio libre'):isPir(e.topic)?pirLabel(e):'Resumen de simulación'}</small></div><time>{dateText(e.created_at)}</time></div>)}{!events.length&&<p className="empty">No hay eventos disponibles.</p>}</div></section></div>
+   <OccupancyChart items={[...simEvents,...spaceHistoryEvents]} now={now}/><div className="two-col"><section className="surface"><div className="section-head"><div><h2>Mapa de espacios simulados</h2><p>Estado más reciente por estacionamiento virtual</p></div><span className="pill">{spaces.length} espacios</span></div><div className="space-grid">{spaces.length?spaces.map(s=><div className={'parking-space '+(s.occupied?'occupied':'available')} key={s.id}><span className="car-icon">▰</span><strong>{s.id}</strong><span className="space-status">{s.occupied?'Ocupado':'Libre'}</span><small>{Number.isFinite(s.distance)?`${s.distance} cm`:'Sin distancia'}</small></div>):<p className="empty">Todavía no se recibieron estados de espacios.</p>}</div><div className="legend"><span><i className="legend-green"/>Libre</span><span><i className="legend-red"/>Ocupado</span></div></section><section className="surface"><div className="section-head"><div><h2>Actividad reciente</h2><p>Últimos eventos sincronizados</p></div><button className="text-button" onClick={()=>setTab('history')}>Ver todos →</button></div><div className="activity-list">{events.slice(0,7).map(e=><div className="activity" key={e.id}><span className="activity-icon">↗</span><div><strong>{shortTopic(e.topic)}</strong><small>{e.topic.startsWith('parking/state/')?(isOccupied(e.payload.occupied)?'Espacio ocupado':'Espacio libre'):isPir(e.topic)?pirLabel(e):'Resumen de simulación'}</small></div><time>{dateText(e.created_at)}</time></div>)}{!events.length&&<p className="empty">No hay eventos disponibles.</p>}</div></section></div>
    {alerts.length>0&&<section className="notice"><span>!</span><div><strong>{alerts.length} aviso(s) para revisar</strong><p>{alerts[0].title}. Revisa la sección de alertas.</p></div><button onClick={()=>setTab('alerts')}>Revisar →</button></section>}</>}
    {tab==='history'&&<section className="surface"><div className="section-head"><div><h2>Eventos de Firestore</h2><p>Eventos PIR (hasta 200), estados simulados (hasta 400) y resúmenes (hasta 20), con filtros locales por fecha UTC</p></div><span className="pill">{visible.length} resultados</span></div><div className="filters"><label>Desde<input type="date" value={from} onChange={e=>setFrom(e.target.value)}/></label><label>Hasta<input type="date" value={to} onChange={e=>setTo(e.target.value)}/></label><button className="secondary" onClick={()=>{setFrom('');setTo('')}}>Limpiar filtros</button></div><div className="table-wrap"><table><thead><tr><th>Fecha</th><th>Evento</th><th>Datos</th></tr></thead><tbody>{visible.map(e=><tr key={e.id}><td className="date-cell">{dateText(e.created_at)}</td><td><span className="topic">{shortTopic(e.topic)}</span></td><td><code>{JSON.stringify(e.payload)}</code></td></tr>)}</tbody></table>{!visible.length&&<p className="empty">No hay eventos para los filtros seleccionados.</p>}</div></section>}
    {tab==='alerts'&&<section className="surface"><div className="section-head"><div><h2>Alertas de monitoreo</h2><p>Reglas calculadas en el navegador a partir de los eventos recientes</p></div><span className="pill">{alerts.length} activas</span></div>{alerts.length?alerts.map((a,i)=><div className={'alert-row '+a.kind} key={i}><span className="alert-symbol">!</span><div><strong>{a.title}</strong><p>{a.detail}</p></div></div>):<div className="good-state">✓ Sin alertas detectadas en los datos observados.</div>}<p className="footnote">Estas alertas son informativas: aún no se guardan ni envían notificaciones desde un servicio backend.</p></section>}
