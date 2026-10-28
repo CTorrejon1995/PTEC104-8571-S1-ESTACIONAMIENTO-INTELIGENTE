@@ -18,7 +18,7 @@ services:
   simulator:
     build: ./simulator
     container_name: parking-simulator
-    restart: unless-stopped
+    restart: no
     environment:
       MQTT_HOST: mosquitto
       MQTT_PORT: "1883"
