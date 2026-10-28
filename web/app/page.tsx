@@ -23,14 +23,14 @@ export default function Home(){
  useEffect(()=>{if(!user)return;let active=true;setRole('verificando');getDoc(doc(db,'organizations',org,'members',user.uid)).then(s=>{if(!active)return;const value=s.exists()?s.data().role:null;setRole(value==='admin'||value==='viewer'?value:'sin acceso')}).catch(e=>{if(active){setRole('error');setError('No se pudo verificar la membresía: '+e.message)}});return()=>{active=false}},[user]);
  useEffect(()=>{if(!user||!['admin','viewer'].includes(role))return;
  const base=collection(db,'organizations',org,'sites',site,'events');
- // Consultas independientes: una ráfaga de PIR no desplaza los estados simulados.
+ // Actividad por fecha (sin sesgo alfabético hacia P01); mapa por consultas individuales.
  const unsubPir=onSnapshot(query(base,where('topic','>=','parking/pir/'),where('topic','<','parking/pir0'),limit(200)),snap=>{setPirEvents(snap.docs.map(d=>({id:d.id,...d.data()} as EventItem)).filter(e=>isPir(e.topic)).sort((a,b)=>getTime(b)-getTime(a)))},e=>setError('Firestore PIR: '+e.message));
- const unsubSim=onSnapshot(query(base,where('topic','>=','parking/state/'),where('topic','<','parking/state0'),limit(400)),snap=>{setSimEvents(snap.docs.map(d=>({id:d.id,...d.data()} as EventItem)).sort((a,b)=>getTime(b)-getTime(a)))},e=>setError('Firestore simulación: '+e.message));
+ const unsubSim=onSnapshot(query(base,orderBy('created_at','desc'),limit(400)),snap=>{setSimEvents(snap.docs.map(d=>({id:d.id,...d.data()} as EventItem)).filter(e=>e.topic?.startsWith('parking/state/')).sort((a,b)=>getTime(b)-getTime(a)))},e=>setError('Firestore actividad reciente: '+e.message));
  const unsubSpaces=Array.from({length:8},(_,i)=>`P${String(i+1).padStart(2,'0')}`).map(id=>onSnapshot(query(base,where('topic','==',`parking/state/${id}`),limit(30)),snap=>{const rows=snap.docs.map(d=>({id:d.id,...d.data()} as EventItem)).sort((a,b)=>getTime(b)-getTime(a));setLatestSpaceEvents(prev=>[...prev.filter(e=>e.topic!==`parking/state/${id}`),...rows.slice(0,1)])},e=>setError(`Firestore espacio ${id}: ${e.message}`)));
  const unsubSummary=onSnapshot(query(base,where('topic','==','parking/summary'),limit(20)),snap=>{setSummaryEvents(snap.docs.map(d=>({id:d.id,...d.data()} as EventItem)).sort((a,b)=>getTime(b)-getTime(a)))},e=>setError('Firestore resumen: '+e.message));
  return()=>{unsubPir();unsubSim();unsubSummary();unsubSpaces.forEach(unsub=>unsub())};
  },[user,role]);
- useEffect(()=>{setEvents([...pirEvents,...simEvents,...summaryEvents].sort((a,b)=>getTime(b)-getTime(a)).slice(0,400))},[pirEvents,simEvents,summaryEvents]);
+ useEffect(()=>{setEvents([...new Map([...pirEvents,...simEvents,...summaryEvents,...latestSpaceEvents].map(e=>[e.id,e])).values()].sort((a,b)=>getTime(b)-getTime(a)).slice(0,400))},[pirEvents,simEvents,summaryEvents,latestSpaceEvents]);
  const spaces=useMemo(()=>{const map=new Map<string,EventItem>();for(const e of [...simEvents,...latestSpaceEvents].sort((a,b)=>getTime(b)-getTime(a))){if(e.topic.startsWith('parking/state/')){const id=e.topic.split('/').pop()||'';if(!map.has(id))map.set(id,e)}}return [...map.entries()].sort(([a],[b])=>a.localeCompare(b,undefined,{numeric:true})).map(([id,event])=>({id,event,occupied:isOccupied(event.payload.occupied),distance:asNum(event.payload.distance_cm)}))},[simEvents,latestSpaceEvents]);
  const summary=summaryEvents[0];
  const pirLatest=pirEvents[0];
