@@ -1,4 +1,4 @@
-# 🚗 Parking Smart — Estacionamiento Inteligente IoT con Microservicios
+# Parking Smart — Estacionamiento Inteligente IoT con Microservicios
 
 **Proyecto PTEC104-8571-S1 · Implementación finalizada · Octubre de 2026**
 
@@ -18,65 +18,37 @@ El sistema distingue expresamente entre **eventos reales de movimiento** obtenid
 
 | Componente | Estado |
 | --- | --- |
-| Raspberry Pi 4 y sensor PIR HC-SR501 | ✅ Integrados; eventos físicos visibles en el dashboard |
-| Publicación y procesamiento de eventos MQTT | ✅ Implementados |
-| Microservicios Mosquitto, processor y API | ✅ Implementados con Docker Compose |
-| API REST con FastAPI | ✅ Implementada |
-| Persistencia local SQLite | ✅ Implementada |
-| Sincronización con Firebase Firestore | ✅ Operativa |
-| Dashboard en Vercel | ✅ Desplegado |
-| Roles `admin` y `viewer` | ✅ Configurados y probados funcionalmente |
-| Separación de datos físicos y simulados | ✅ Visible en el dashboard |
-| Inicio automático del sensor PIR | ✅ Configurado mediante systemd |
+| Raspberry Pi 4 y sensor PIR HC-SR501 | Integrados; eventos físicos visibles en el dashboard |
+| Publicación y procesamiento de eventos MQTT | Implementados |
+| Microservicios Mosquitto, processor y API | Implementados con Docker Compose |
+| API REST con FastAPI | Implementada |
+| Persistencia local SQLite | Implementada |
+| Sincronización con Firebase Firestore | Operativa |
+| Dashboard en Vercel | Desplegado |
+| Roles `admin` y `viewer` | Configurados y probados funcionalmente |
+| Separación de datos físicos y simulados | Visible en el dashboard |
+| Inicio automático del sensor PIR | Configurado mediante systemd |
 
 > **Alcance:** El proyecto está finalizado según la implementación reportada. Las capturas muestran eventos físicos y simulados en el panel. El aviso «Sin actividad reciente» es compatible con un sensor que no ha detectado movimiento en el período considerado; no implica necesariamente una falla.
 
 ## Arquitectura general
 
-El siguiente diagrama presenta los componentes como **bloques conectados**, diferenciando el origen físico de los eventos simulados y mostrando el recorrido de los datos hasta el dashboard.
+La arquitectura se representa mediante un flujo de componentes conectados. El sensor PIR físico y el simulador publican eventos independientes en MQTT; el procesador los registra localmente y la integración con la nube permite visualizarlos en el dashboard.
 
 ```mermaid
-flowchart TB
-    subgraph HARDWARE["Hardware físico · Raspberry Pi 4"]
-        PIR["Sensor PIR HC-SR501<br/>Detección de movimiento"]
-        GPIO["GPIO17<br/>estacionamientoF_mqtt.py"]
-        PIR --> GPIO
-    end
-
-    subgraph EDGE["Microservicios · Docker Compose"]
-        MQTT["Mosquitto<br/>Broker MQTT"]
-        PROC["Processor<br/>Procesamiento de eventos"]
-        DB[("SQLite<br/>Persistencia local")]
-        API["FastAPI<br/>API REST y sincronización"]
-        SIM["Simulador<br/>Ocupación virtual P01–P08"]
-        MQTT --> PROC
-        PROC --> DB
-        DB <--> API
-        SIM -->|Eventos simulados| MQTT
-    end
-
-    subgraph CLOUD["Servicios en la nube"]
-        FS[("Firebase Firestore<br/>Eventos y datos sincronizados")]
-        AUTH["Autenticación y roles<br/>admin / viewer"]
-        WEB["Dashboard web · Vercel<br/>Resumen · Historial · Alertas · Dispositivos"]
-        FS --> WEB
-        AUTH --> WEB
-    end
-
-    GPIO -->|"MQTT · parking/pir/pir-entrada-01/event"| MQTT
-    API -->|Sincronización| FS
-
-    classDef physical fill:#e7f8f2,stroke:#149b78,color:#103d31,stroke-width:2px;
-    classDef service fill:#eaf1ff,stroke:#4474bb,color:#152c53,stroke-width:1.5px;
-    classDef store fill:#fff2db,stroke:#c38b2e,color:#533a0d,stroke-width:1.5px;
-    classDef cloud fill:#f1ebff,stroke:#8463c5,color:#302050,stroke-width:1.5px;
-    class PIR,GPIO physical;
-    class MQTT,PROC,API,SIM service;
-    class DB,FS store;
-    class AUTH,WEB cloud;
+flowchart LR
+    SIM["Simulador IoT<br/>Ocupación de espacios"] -->|Eventos simulados| MQTT["Broker MQTT<br/>Mosquitto"]
+    PI["Raspberry Pi 4<br/>Sensor PIR HC-SR501"] -->|Eventos físicos de movimiento| MQTT
+    MQTT --> PROC["Procesador<br/>de eventos"]
+    PROC --> SQLITE[("SQLite local")]
+    PROC --> API["Servicios / API<br/>Sincronización en la nube"]
+    SQLITE <--> API
+    API --> FIRESTORE[("Firebase<br/>Firestore")]
+    FIRESTORE --> DASH["Dashboard web<br/>Vercel"]
+    AUTH["Autenticación y roles<br/>admin / viewer"] --> DASH
 ```
 
-> **Importante:** el sensor PIR informa detecciones de movimiento, **no ocupación de plazas**. Los estados de las plazas P01–P08 provienen del simulador y se presentan por separado en el dashboard. El diagrama es una vista lógica de los componentes.
+**Alcance del hardware:** La solución integra una Raspberry Pi 4 con un sensor PIR HC-SR501, de acuerdo con el alcance autorizado para el proyecto. El PIR detecta movimiento, no ocupación de plazas; la ocupación de los espacios virtuales se obtiene del simulador y se presenta separadamente en el dashboard.
 
 ## Tecnologías
 
