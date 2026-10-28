@@ -110,6 +110,7 @@ def mqtt_worker(stop):
 
 def sync_worker(stop):
     while not stop.is_set():
+        pending = []
         if CLOUD_API_URL and DEVICE_TOKEN:
             try:
                 with db_connect() as conn:
@@ -132,7 +133,8 @@ def sync_worker(stop):
                     print(f'[SYNC] Lote procesado: {len(pending)} eventos', flush=True)
             except (HTTPError, URLError, TimeoutError, OSError, sqlite3.Error, RuntimeError) as exc:
                 print(f'[SYNC] Nube no disponible; eventos conservados: {exc}', flush=True)
-        stop.wait(5)
+        # Con cola pendiente, continuar inmediatamente; si está vacía, esperar.
+        stop.wait(0.2 if pending else 5)
 
 
 @asynccontextmanager

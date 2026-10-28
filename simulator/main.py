@@ -11,6 +11,7 @@ MQTT_HOST = os.getenv("MQTT_HOST", "localhost")
 MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
 SPACE_COUNT = int(os.getenv("PARKING_SPACES", "8"))
 INTERVAL = float(os.getenv("PUBLISH_INTERVAL_SECONDS", "3"))
+HEARTBEAT_SECONDS = max(10.0, float(os.getenv("STATE_HEARTBEAT_SECONDS", "60")))
 
 client = mqtt.Client(
     callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
@@ -39,6 +40,7 @@ while True:
 client.loop_start()
 occupancy = {f"P{i:02d}": random.choice([True, False]) for i in range(1, SPACE_COUNT + 1)}
 entry_event_probability = 0.12
+last_published = {}
 
 try:
     while True:
@@ -46,6 +48,13 @@ try:
             # Simula cambios de estado ocasionales entre una lectura y la siguiente.
             if random.random() < 0.08:
                 occupancy[space_id] = not occupancy[space_id]
+
+            # Publicar al cambiar de estado o cada HEARTBEAT_SECONDS.
+            # Así el procesador no genera miles de eventos redundantes.
+            current_time = time.monotonic()
+            previous = last_published.get(space_id)
+            if previous is not None and previous[0] == occupancy[space_id] and current_time - previous[1] < HEARTBEAT_SECONDS:
+                continue
 
             # Un vehículo cerca produce una distancia pequeña; un puesto libre, una grande.
             distance_cm = round(
@@ -66,6 +75,7 @@ try:
                 json.dumps(message),
                 qos=1,
             )
+            last_published[space_id] = (occupancy[space_id], current_time)
             print(f"[SIMULATOR] {space_id}: distancia={distance_cm} cm", flush=True)
 
         if random.random() < entry_event_probability:
